@@ -3,12 +3,15 @@ package mocks
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
+
+	log "unknwon.dev/clog/v2"
 )
 
 // Global storage for captured headers (for testing)
@@ -22,6 +25,7 @@ type IntrospectionResponse struct {
 	Active   bool     `json:"active"`
 	Aud      []string `json:"aud,omitempty"`
 	ClientID string   `json:"client_id,omitempty"`
+	Expires  int64    `json:"exp,omitempty"`
 }
 
 // SessionResponse represents the session/whoami response
@@ -40,10 +44,11 @@ func StartMockAuthServer() {
 	// Session whoami endpoint
 	router.GET("/sessions/whoami", handleWhoami)
 
-	log.Println("Mock auth server listening on :4001")
 	go func() {
 		if err := http.ListenAndServe(":4001", router); err != nil {
-			log.Fatal("Failed to start mock auth server:", err)
+			log.Error("Failed to start mock auth server: %v", err)
+		} else {
+			log.Info("Mock auth server listening on :4001")
 		}
 	}()
 }
@@ -57,6 +62,7 @@ func handleIntrospect(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 	}
 
 	token := r.FormValue("token")
+	slog.Info("Received introspection request", "token", token)
 
 	// Check Authorization header if token not in form
 	if token == "" {
@@ -68,24 +74,29 @@ func handleIntrospect(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 
 	var response IntrospectionResponse
 
+	oneHourInFuture := time.Now().Add(time.Hour).Unix()
+
 	switch token {
-	case "valid-machine-token":
+	case "ory_at_valid-machine-token":
 		response = IntrospectionResponse{
 			Active:   true,
 			Aud:      []string{"machines"},
 			ClientID: "test-machine-client",
+			Expires:  oneHourInFuture,
 		}
-	case "valid-psp-token":
+	case "ory_at_valid-psp-token":
 		response = IntrospectionResponse{
 			Active:   true,
 			Aud:      []string{"psp"},
 			ClientID: "test-psp-client",
+			Expires:  oneHourInFuture,
 		}
-	case "valid-machine-psp-token":
+	case "ory_at_valid-machine-psp-token":
 		response = IntrospectionResponse{
 			Active:   true,
 			Aud:      []string{"machines", "psp"},
 			ClientID: "test-psp-client",
+			Expires:  oneHourInFuture,
 		}
 	default:
 		response = IntrospectionResponse{Active: false}
@@ -103,7 +114,7 @@ func handleWhoami(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	// Check for bearer token
 	authHeader := r.Header.Get("Authorization")
-	validBearer := authHeader == "Bearer valid-user-token"
+	validBearer := authHeader == "Bearer ory_st_valid-user-token"
 
 	if validCookie || validBearer {
 		response := SessionResponse{
@@ -148,10 +159,12 @@ func StartUpstreamService() {
 	router.Handle("DELETE", "/shared/*path", captureHeaders)
 	router.Handle("PATCH", "/shared/*path", captureHeaders)
 
-	log.Println("Upstream service listening on :4002")
 	go func() {
 		if err := http.ListenAndServe(":4002", router); err != nil {
-			log.Fatal("Failed to start upstream service:", err)
+			slog.Error("Failed to start upstream service", "error", err)
+			log.Warn("Failed to start upstream service: %v", err)
+		} else {
+			log.Info("Upstream service started successfully")
 		}
 	}()
 }
@@ -167,9 +180,9 @@ func captureHeaders(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	capturedMutex.Unlock()
 
 	// Log received headers for debugging
-	log.Printf("Received request to %s %s", r.Method, r.URL.Path)
-	log.Printf("X-Auth-Source: %s", r.Header.Get("X-Auth-Source"))
-	log.Printf("X-Auth-Details: %s", r.Header.Get("X-Auth-Details"))
+	log.Info("Received request to %s %s", r.Method, r.URL.Path)
+	log.Info("X-Auth-Source: %s", r.Header.Get("X-Auth-Source"))
+	log.Info("X-Auth-Details: %s", r.Header.Get("X-Auth-Details"))
 
 	// Return success response
 	response := map[string]interface{}{

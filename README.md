@@ -1,6 +1,4 @@
-# ORY Oathkeeper Testing Project
-
-A test for kdk
+# kdk-ath-infr-test
 
 ```bash
 export OATHKEEPER_PATH=/path/to/oathkeeper

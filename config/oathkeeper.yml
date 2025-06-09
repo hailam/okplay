@@ -21,9 +21,9 @@ errors:
         verbose: true
 
 access_rules:
-  matching_strategy: glob
+  matching_strategy: regexp
   repositories:
-    - file://./rules.json
+    - file://../okplay/config/rules.json
 
 authenticators:
   anonymous:
@@ -48,11 +48,12 @@ authenticators:
     enabled: true
     config:
       check_session_url: http://localhost:4001/sessions/whoami
+      preserve_path: true
       token_from:
         header: Authorization
-      preserve_authorization: true
       extra_from: "@this"
       subject_from: "identity.id"
+      prefix: "ory_st"
 
   oauth2_introspection:
     enabled: true
@@ -60,14 +61,7 @@ authenticators:
       introspection_url: http://localhost:4001/introspect
       token_from:
         header: Authorization
-        query_parameter: token
-        cookie: ory_st
-      pre_authorization:
-        enabled: false
-      cache:
-        enabled: false
-      extra_from: "@this"
-      subject_from: "client_id"
+      prefix: "ory_at"
 
 authorizers:
   allow:

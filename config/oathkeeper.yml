@@ -1,0 +1,90 @@
+# ORY Oathkeeper Configuration
+serve:
+  proxy:
+    port: 4455
+    host: 0.0.0.0
+  api:
+    port: 4456
+    host: 0.0.0.0
+
+log:
+  level: debug
+  format: json
+
+errors:
+  fallback:
+    - json
+  handlers:
+    json:
+      enabled: true
+      config:
+        verbose: true
+
+access_rules:
+  matching_strategy: glob
+  repositories:
+    - file://./rules.json
+
+authenticators:
+  anonymous:
+    enabled: true
+    config:
+      subject: guest
+
+  noop:
+    enabled: true
+
+  cookie_session:
+    enabled: true
+    config:
+      check_session_url: http://localhost:4001/sessions/whoami
+      preserve_path: true
+      extra_from: "@this"
+      subject_from: "identity.id"
+      only:
+        - ory_session
+
+  bearer_token:
+    enabled: true
+    config:
+      check_session_url: http://localhost:4001/sessions/whoami
+      token_from:
+        header: Authorization
+      preserve_authorization: true
+      extra_from: "@this"
+      subject_from: "identity.id"
+
+  oauth2_introspection:
+    enabled: true
+    config:
+      introspection_url: http://localhost:4001/introspect
+      token_from:
+        header: Authorization
+        query_parameter: token
+        cookie: ory_st
+      pre_authorization:
+        enabled: false
+      cache:
+        enabled: false
+      extra_from: "@this"
+      subject_from: "client_id"
+
+authorizers:
+  allow:
+    enabled: true
+
+  deny:
+    enabled: true
+
+mutators:
+  noop:
+    enabled: true
+
+  header:
+    enabled: true
+    config:
+      headers:
+        X-Default: "default"
+
+  id_token:
+    enabled: false

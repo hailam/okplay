@@ -183,7 +183,7 @@ func runTests() {
 			Token:          "ory_at_valid-machine-token",
 			AuthType:       "oauth2",
 			ExpectedStatus: http.StatusOK,
-			ExpectedSource: "machine",
+			ExpectedSource: "machines",
 		},
 
 		{
@@ -303,10 +303,10 @@ func runSingleTest(tc TestCase) TestResult {
 				return result
 			}
 
-			//if authSource != tc.ExpectedSource {
-			//	result.Error = fmt.Sprintf("Expected X-Auth-Source '%s', got '%s'", tc.ExpectedSource, authSource)
-			//	return result
-			//}
+			if authSource != tc.ExpectedSource {
+				result.Error = fmt.Sprintf("Expected X-Auth-Source '%s', got '%s'", tc.ExpectedSource, authSource)
+				return result
+			}
 
 			if !hasAuthDetails {
 				result.Error = "X-Auth-Details header not found"

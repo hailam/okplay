@@ -23,7 +23,7 @@ errors:
 access_rules:
   matching_strategy: regexp
   repositories:
-    - file://../okplay/config/rules.json
+    - file://../okplay/config/rules.yml
 
 authenticators:
   anonymous:

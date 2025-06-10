@@ -1,0 +1,122 @@
+- id: wallet-rule
+  match:
+    url: "http://<.*>wallet</?.*>"
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+  upstream:
+    url: "http://localhost:4002"
+  authenticators:
+    - handler: oauth2_introspection
+      config:
+        target_audience:
+          - machines
+    - handler: cookie_session
+    - handler: bearer_token
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Auth-Source: |-
+            {{- if .Extra.identity -}}
+              user
+            {{- else if .Extra.aud -}}
+              {{- $hasPsp := false -}}
+              {{- $hasMachines := false -}}
+              {{- range .Extra.aud -}}
+                {{- if eq . "psp" -}}
+                  {{- $hasPsp = true -}}
+                {{- else if eq . "machines" -}}
+                  {{- $hasMachines = true -}}
+                {{- end -}}
+              {{- end -}}
+              {{- if $hasPsp -}}
+                psp
+              {{- else if $hasMachines -}}
+                machines
+              {{- else -}}
+                invalid
+              {{- end -}}
+            {{- else -}}
+              invalid
+            {{- end -}}
+          X-Auth-Details: "{{ .Extra | toJson }}"
+
+- id: switch-rule
+  match:
+    url: "http://<.*>/switch/<.*>"
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+  upstream:
+    url: "http://localhost:4002"
+  authenticators:
+    - handler: oauth2_introspection
+      config:
+        target_audience:
+          - psp
+    - handler: oauth2_introspection
+      config:
+        target_audience:
+          - machines
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Auth-Source: |-
+            {{- if .Extra.aud -}}
+              {{- $hasPsp := false -}}
+              {{- $hasMachines := false -}}
+              {{- range .Extra.aud -}}
+                {{- if eq . "psp" -}}
+                  {{- $hasPsp = true -}}
+                {{- else if eq . "machines" -}}
+                  {{- $hasMachines = true -}}
+                {{- end -}}
+              {{- end -}}
+              {{- if $hasPsp -}}
+                psp
+              {{- else if $hasMachines -}}
+                machines
+              {{- else -}}
+                invalid
+              {{- end -}}
+            {{- else -}}
+              invalid
+            {{- end -}}
+          X-Auth-Details: "{{ .Extra | toJson }}"
+
+- id: shared-rule
+  match:
+    url: "http://<.*>/shared/<.*>"
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+  upstream:
+    url: "http://localhost:4002"
+  authenticators:
+    - handler: oauth2_introspection
+      config:
+        target_audience:
+          - machines
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Auth-Details: "{{ .Extra | toJson }}"
+          X-Auth-Source: machines

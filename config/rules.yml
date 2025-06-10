@@ -1,6 +1,28 @@
+- id: wallet-public-rule
+  match:
+    url: "http://<.*>/wallet/public/<.*>"
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+  upstream:
+    url: "http://localhost:4002"
+  authenticators:
+    - handler: anonymous
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Auth-Source: "public"
+          X-Auth-Details: "{{ . | toJson }}"
+
 - id: wallet-rule
   match:
-    url: "http://<.*>wallet</?.*>"
+    url: "http://<.*>/wallet/<(?!public/).*>"
     methods:
       - GET
       - POST
@@ -13,7 +35,7 @@
     - handler: oauth2_introspection
       config:
         target_audience:
-          - machines
+          - wallet
     - handler: cookie_session
     - handler: bearer_token
   authorizer:
@@ -23,29 +45,26 @@
       config:
         headers:
           X-Auth-Source: |-
-            {{- if .Extra.identity -}}
+            {{- if and .Extra.identity (eq .Extra.identity.schema_id "normal_users") -}}
               user
             {{- else if .Extra.aud -}}
-              {{- $hasPsp := false -}}
               {{- $hasMachines := false -}}
-              {{- range .Extra.aud -}}
-                {{- if eq . "psp" -}}
-                  {{- $hasPsp = true -}}
-                {{- else if eq . "machines" -}}
+              {{- range split " " .Extra.scope -}}
+                {{- if eq . "machines" -}}
                   {{- $hasMachines = true -}}
                 {{- end -}}
               {{- end -}}
-              {{- if $hasPsp -}}
-                psp
-              {{- else if $hasMachines -}}
+              {{- if $hasMachines -}}
                 machines
               {{- else -}}
-                invalid
+                user
               {{- end -}}
+            {{- else if eq .Subject "public" -}}
+              public
             {{- else -}}
-              invalid
+              unknown
             {{- end -}}
-          X-Auth-Details: "{{ .Extra | toJson }}"
+          X-Auth-Details: "{{ . | toJson }}"
 
 - id: switch-rule
   match:
@@ -62,11 +81,7 @@
     - handler: oauth2_introspection
       config:
         target_audience:
-          - psp
-    - handler: oauth2_introspection
-      config:
-        target_audience:
-          - machines
+          - switch
   authorizer:
     handler: allow
   mutators:
@@ -75,24 +90,22 @@
         headers:
           X-Auth-Source: |-
             {{- if .Extra.aud -}}
-              {{- $hasPsp := false -}}
-              {{- $hasMachines := false -}}
-              {{- range .Extra.aud -}}
-                {{- if eq . "psp" -}}
-                  {{- $hasPsp = true -}}
-                {{- else if eq . "machines" -}}
-                  {{- $hasMachines = true -}}
-                {{- end -}}
-              {{- end -}}
-              {{- if $hasPsp -}}
-                psp
-              {{- else if $hasMachines -}}
-                machines
-              {{- else -}}
-                invalid
-              {{- end -}}
+            {{- $hasMachines := false -}}
+            {{- $hasPsp := false -}}
+            {{- range split " " .Extra.scope -}}
+            {{- if eq . "machines" -}}
+            {{- $hasMachines = true -}}
+            {{- else if eq . "psp" -}}
+            {{- $hasPsp = true -}}
+            {{- end -}}
+            {{- end -}}
+            {{- if $hasMachines -}}
+            machines
+            {{- else if $hasPsp -}}
+            psp
+            {{- end -}}
             {{- else -}}
-              invalid
+            invalid
             {{- end -}}
           X-Auth-Details: "{{ .Extra | toJson }}"
 
@@ -111,6 +124,8 @@
     - handler: oauth2_introspection
       config:
         target_audience:
+          - shared
+        required_scope:
           - machines
   authorizer:
     handler: allow
@@ -120,3 +135,45 @@
         headers:
           X-Auth-Details: "{{ .Extra | toJson }}"
           X-Auth-Source: machines
+
+- id: backoffice-rule
+  match:
+    url: "http://<.*>/backoffice/<.*>"
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+  upstream:
+    url: "http://localhost:4002"
+  authenticators:
+    - handler: oauth2_introspection
+      config:
+        target_audience:
+          - backoffice
+    - handler: cookie_session
+    - handler: bearer_token
+  authorizer:
+    handler: allow
+  mutators:
+    - handler: header
+      config:
+        headers:
+          X-Auth-Source: |-
+            {{- if and .Extra.identity (eq .Extra.identity.schema_id "backoffice_users") -}}
+            user
+            {{- else if .Extra.aud -}}
+            {{- $hasMachines := false -}}
+            {{- range split " " .Extra.scope -}}
+            {{- if eq . "machines" -}}
+            {{- $hasMachines = true -}}
+            {{- end -}}
+            {{- end -}}
+            {{- if $hasMachines -}}
+            machines
+            {{- end -}}
+            {{- else -}}
+            user
+            {{- end -}}
+          X-Auth-Details: "{{ .Extra | toJson }}"

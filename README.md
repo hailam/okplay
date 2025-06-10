@@ -1,7 +1,6 @@
 # kdk-ath-infr-test
 
 ```bash
-export OATHKEEPER_PATH=/path/to/oathkeeper
+run oathkeeper at http://localhost:4455
 go run .
 ```
-

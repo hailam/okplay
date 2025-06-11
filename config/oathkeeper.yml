@@ -70,6 +70,12 @@ authorizers:
   deny:
     enabled: true
 
+  remote_json:
+    enabled: true
+    config:
+      remote: http://localhost:4003/remote-authz
+      payload: "{}"
+
 mutators:
   noop:
     enabled: true

@@ -60,6 +60,7 @@ func main() {
 	fmt.Printf("\n%s📦 Starting Services...%s\n", colorYellow, colorReset)
 	mocks.StartMockAuthServer()
 	mocks.StartUpstreamService()
+	mocks.StartMockRemoteAuthZServer()
 
 	// oathkeeperCmd, err := startOathkeeper()
 	// if err != nil {
@@ -109,7 +110,7 @@ func runTests() {
 		{Name: "[Wallet] Allow machine client", Path: "/wallet/system", Token: "ory_at_wallet-machine-token", ExpectedStatus: http.StatusOK, ExpectedSource: "machines"},
 		// !!!!! fails because we can't make a decision based on whoami alone since it returns 200 even for backoffice users, either we do this from app's middleware
 		// or we go for custom omni authenticator
-		{Name: "[Wallet] Deny backoffice user", Path: "/wallet/balance", Cookie: "valid-session-backoffice-user", ExpectedStatus: http.StatusUnauthorized},
+		{Name: "[Wallet] Deny backoffice user", Path: "/wallet/balance", Cookie: "valid-session-backoffice-user", ExpectedStatus: http.StatusForbidden},
 		{Name: "[Wallet] Allow public access (no auth)", Path: "/wallet/public/check", ExpectedStatus: http.StatusOK, ExpectedSource: "public"},
 
 		// Backoffice Namespace
@@ -118,7 +119,7 @@ func runTests() {
 		{Name: "[Backoffice] Allow machine client", Path: "/backoffice/system", Token: "ory_at_backoffice-machine-token", ExpectedStatus: http.StatusOK, ExpectedSource: "machines"},
 		// !!!!! fails because we can't make a decision based on whoami alone since it returns 200 even for normal users, either we do this from app's middleware
 		// or we go for custom omni authenticator
-		{Name: "[Backoffice] Deny normal user", Path: "/backoffice/dashboard", Cookie: "valid-session-normal-user", ExpectedStatus: http.StatusUnauthorized},
+		{Name: "[Backoffice] Deny normal user", Path: "/backoffice/dashboard", Cookie: "valid-session-normal-user", ExpectedStatus: http.StatusForbidden},
 
 		// Switch Namespace
 		{Name: "[Switch] Allow PSP client", Path: "/switch/payment", Token: "ory_at_switch-psp-token", ExpectedStatus: http.StatusOK, ExpectedSource: "psp"},

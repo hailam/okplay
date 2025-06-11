@@ -64,7 +64,7 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Error("writeJSON encode failed", "error", err)
+		log.Error("writeJSON encode failed: %v", err)
 	}
 }
 
@@ -77,7 +77,7 @@ func StartMockAuthServer() {
 	go func() {
 		log.Info("Mock auth server listening on :4001")
 		if err := http.ListenAndServe(":4001", router); err != nil {
-			log.Error("mock auth server failed", "error", err)
+			log.Error("mock auth server failed: %v", err)
 		}
 	}()
 }
@@ -89,7 +89,7 @@ func handleIntrospect(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 		return
 	}
 	token := r.FormValue("token")
-	log.Info("introspect request received", "token", token)
+	log.Info("introspect request received: token=%v", token)
 
 	responses := map[string]IntrospectionResponse{
 		"ory_at_wallet-machine-token":     {true, []string{"wallet"}, "machines", "wallet-machine", expiresIn(time.Hour)},
@@ -164,7 +164,7 @@ func StartUpstreamService() {
 	go func() {
 		log.Info("Upstream service listening on :4002")
 		if err := http.ListenAndServe(":4002", router); err != nil {
-			log.Error("upstream service failed", "error", err)
+			log.Error("upstream service failed: %v", err)
 		}
 	}()
 }
@@ -175,7 +175,7 @@ func upstreamHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 	headersMu.Lock()
 	capturedHeaders[key] = r.Header.Clone()
 	headersMu.Unlock()
-	log.Info("upstream request", "path", r.URL.Path, "X-Auth-Source", r.Header.Get("X-Auth-Source"))
+	log.Info("upstream request: path=%s X-Auth-Source=%s", r.URL.Path, r.Header.Get("X-Auth-Source"))
 	resp := map[string]interface{}{"status": "success", "path": r.URL.Path, "headers": r.Header}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -187,7 +187,7 @@ func StartMockRemoteAuthZServer() {
 	go func() {
 		log.Info("Mock remote authz server listening on :4003")
 		if err := http.ListenAndServe(":4003", router); err != nil {
-			log.Error("remote authz server failed", "error", err)
+			log.Error("remote authz server failed: %v", err)
 		}
 	}()
 }
@@ -200,14 +200,14 @@ func handleRemoteAuthZ(w http.ResponseWriter, r *http.Request, _ httprouter.Para
 		return
 	}
 	r.Body.Close()
-	log.Info("remote-authz raw body", "body", string(body))
+	log.Info("remote-authz raw body=%s", string(body))
 
 	var rp RequestPayload
 	if err := json.Unmarshal(body, &rp); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
 	}
-	log.Info("remote-authz payload", "payload", rp)
+	log.Info("remote-authz payload: payload=%v", rp)
 
 	userType := determineUserType(rp.Context)
 	schemaID := ""
